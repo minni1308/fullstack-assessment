@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import Image from 'next/image';
 
 interface Product {
@@ -17,35 +16,47 @@ interface Product {
   imageUrls: string[];
   featureBullets: string[];
   retailerSku: string;
+  retailPrice?: number;
 }
 
-export default function ProductPage() {
+function ProductPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const sku = searchParams.get('sku');
   const productParam = searchParams.get('product');
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
-    if (productParam) {
+    if (sku) {
+      fetch(`/api/products/${encodeURIComponent(sku)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => setProduct(data))
+        .catch(() => setProduct(null));
+    } else if (productParam) {
       try {
         const parsedProduct = JSON.parse(productParam);
         setProduct(parsedProduct);
-      } catch (error) {
-        console.error('Failed to parse product data:', error);
+      } catch {
+        setProduct(null);
       }
+    } else {
+      setProduct(null);
     }
-  }, [productParam]);
+  }, [sku, productParam]);
 
   if (!product) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
-          <Link href="/">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Products
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            className="mb-4"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Products
+          </Button>
           <Card className="p-8">
             <p className="text-center text-muted-foreground">Product not found</p>
           </Card>
@@ -57,12 +68,14 @@ export default function ProductPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <Link href="/">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Products
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Products
+        </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
@@ -113,10 +126,15 @@ export default function ProductPage() {
                 <Badge variant="outline">{product.subCategoryName}</Badge>
               </div>
               <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
-              <p className="text-sm text-muted-foreground">SKU: {product.retailerSku}</p>
+              {typeof product.retailPrice === "number" && (
+                <p className="text-2xl font-semibold text-primary mb-2">
+                  ${product.retailPrice.toFixed(2)}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">SKU: {product.retailerSku ?? product.stacklineSku}</p>
             </div>
 
-            {product.featureBullets.length > 0 && (
+            {product.featureBullets?.length > 0 && (
               <Card>
                 <CardContent className="pt-6">
                   <h2 className="text-lg font-semibold mb-3">Features</h2>
@@ -135,5 +153,17 @@ export default function ProductPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <ProductPageContent />
+    </Suspense>
   );
 }

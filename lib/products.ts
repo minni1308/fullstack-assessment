@@ -10,6 +10,7 @@ export interface Product {
   retailerSku: string;
   categoryId: number;
   subCategoryName: string;
+  retailPrice?: number;
 }
 
 export interface ProductFilters {
