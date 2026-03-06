@@ -18,11 +18,11 @@ yarn dev
 
 ## How I Approached the Bugs
 
-I started by using the app—clicking around the product list, filters, search, pagination, and product details,  wrote down everything that broke or felt off. Once I knew what was wrong, I traced the data flow from the UI down to the API and service layer to find where things went sideways. Most of the time it was something simple: a param we never sent, state that got reset too early, or missing validation. I tried to fix things at the source instead of papering over them. Before adding anything new, I checked whether the backend already did what we needed (it usually did subcategory filtering, pagination, SKU lookup were all there). I kept the changes small when I could: a Suspense wrapper here, some optional chaining there. I also spent time on edge cases—invalid URLs, empty responses, the weird race where we’d reset the page before we even knew the total and added guards or sane defaults. For each fix I jotted down the problem, what I did, and why.
+I started by using the app clicking around the product list, filters, search, pagination, and product details,  wrote down everything that broke or felt off. Once I knew what was wrong, I traced the data flow from the UI down to the API and service layer to find where things went sideways. Most of the time it was something simple: a param we never sent, state that got reset too early, or missing validation. I tried to fix things at the source instead of papering over them. Before adding anything new, I checked whether the backend already did what we needed (it usually did subcategory filtering, pagination, SKU lookup were all there). I kept the changes small when I could: a Suspense wrapper here, some optional chaining there. I also spent time on edge cases—invalid URLs, empty responses, the weird race where we’d reset the page before we even knew the total and added guards or sane defaults. For each fix I jotted down the problem, what I did, and why.
 
 ## Bugs Fixed
 
-### Bug 1 — Product page build failure (useSearchParams missing Suspense boundary)
+### Bug 1 - Product page build failure (useSearchParams missing Suspense boundary)
 
 **File:** `app/product/page.tsx`
 
@@ -33,7 +33,7 @@ The production build failed when trying to prerender the `/product` page. Next.j
 The component that uses `useSearchParams()` was moved into a child component and wrapped in `<Suspense>` with a loading fallback. That lets Next.js prerender the page shell and stream the dynamic content when search params are available.
 
 **Why this approach:**  
-Next.js explicitly requires Suspense for client-side hooks that depend on request-time data. Extracting the dynamic part into a child component is the minimal change—we kept the rest of the page structure intact. The loading fallback improves perceived performance while the product content loads.
+Next.js explicitly requires Suspense for client-side hooks that depend on request-time data. Extracting the dynamic part into a child component is the minimal change, we kept the rest of the page structure intact. The loading fallback improves perceived performance while the product content loads.
 
 ### Bug 2 — Subcategory dropdown showed options from all categories
 
@@ -46,7 +46,7 @@ Selecting a category such as "Headphones" should restrict the subcategory dropdo
 The `/api/subcategories` endpoint accepts a `category` query param to filter results, but the frontend never sent it. The selected category is now passed in the request. Additionally, `selectedSubCategory` is reset whenever the category changes so a subcategory from a previous selection is not left selected.
 
 **Why this approach:**  
-The API already supported filtering—the fix was simply passing the value the backend expected. Resetting the subcategory when the category changes prevents invalid combinations (e.g. keeping "Earbud Headphones" selected when switching to "Tablets") and avoids confusing empty results. The reset is done in the `onValueChange` handler (not just in `useEffect`) so the state updates are batched—otherwise the products fetch could run with the old subcategory before the reset is applied, causing a mismatched API request.
+The API already supported filtering, the fix was simply passing the value the backend expected. Resetting the subcategory when the category changes prevents invalid combinations (e.g. keeping "Earbud Headphones" selected when switching to "Tablets") and avoids confusing empty results. The reset is done in the `onValueChange` handler (not just in `useEffect`) so the state updates are batched—otherwise the products fetch could run with the old subcategory before the reset is applied, causing a mismatched API request.
 
 ### Bug 3 — Category filter UX: no "All" option, Clear Filters wiped search, dropdown not resetting visually
 
@@ -56,10 +56,10 @@ The API already supported filtering—the fix was simply passing the value the b
 The category dropdown had no "All Categories" option. Once you selected a category, the only way to undo it was to click "Clear Filters"—which also cleared the search field. If you had typed a search term and then refined by category, clearing the category would wipe your search too. Radix Select could also get stuck showing the last selected value instead of "All Categories" after clearing. The dropdown did not reset visually when clicking Clear Filters.
 
 **Fix:**  
-Added explicit "All Categories" and "All Subcategories" options to both dropdowns using a sentinel value so Radix Select receives a valid value and displays correctly after clearing. Removed search from the Clear Filters action—it now only resets the category and subcategory dropdowns, preserving the search term. Wrapped the filter dropdowns in a div with a changing key on Clear so the Select components fully remount and display "All Categories" correctly.
+Added explicit "All Categories" and "All Subcategories" options to both dropdowns using a sentinel value so Radix Select receives a valid value and displays correctly after clearing. Removed search from the Clear Filters action, it now only resets the category and subcategory dropdowns, preserving the search term. Wrapped the filter dropdowns in a div with a changing key on Clear so the Select components fully remount and display "All Categories" correctly.
 
 **Why this approach:**  
-Radix Select does not reliably show placeholders when the value is `undefined` or empty string—it can get stuck on the previous selection. Using a sentinel value (`__all__`) gives Radix a valid, non-empty value that always maps to an option. Keeping search separate from Clear Filters matches user intent: "Clear Filters" should clear the dropdowns, not erase what the user typed. The key-based remount forces Radix to reset its internal state when clearing, which avoids lingering UI bugs.
+Radix Select does not reliably show placeholders when the value is `undefined` or empty string, it can get stuck on the previous selection. Using a sentinel value (`__all__`) gives Radix a valid, non-empty value that always maps to an option. Keeping search separate from Clear Filters matches user intent: "Clear Filters" should clear the dropdowns, not erase what the user typed. The key-based remount forces Radix to reset its internal state when clearing, which avoids lingering UI bugs.
 
 ### Bug 4 — Wrong app name in browser tab
 
@@ -72,7 +72,7 @@ The page metadata still had the default Next.js scaffold values. The browser tab
 Updated the metadata to use "StackShop" as the title and a proper description for the sample eCommerce catalog.
 
 **Why this approach:**  
-The app header already showed "StackShop"—the metadata should match. Updating layout metadata is the standard Next.js way to control the browser tab title and description, with no extra dependencies.
+The app header already showed "StackShop", the metadata should match. Updating layout metadata is the standard Next.js way to control the browser tab title and description, with no extra dependencies.
 
 ### Bug 5 — No pagination for product list; crash when accessing invalid page (e.g. page 7)
 
@@ -134,10 +134,10 @@ Passing the full product in the URL violated browser URL length limits and cause
 Navigating to page 8 (or loading `?page=8` directly) often showed nothing. A page-correction effect reset the page to 1 whenever `totalProducts` was 0 (e.g. during initial load before the fetch completed). That reset triggered a refetch for page 1, causing a race where an old response could overwrite the correct data. The URL was also overwritten with `page=1` before the total was known, and rapid page changes could leave multiple fetches in flight with no way to cancel the stale one.
 
 **Fix:**  
-Only run the page-correction clamp when `totalProducts > 0`, so we do not reset the page before the first fetch completes. Introduce `pageForUrl` so the URL keeps the requested page until the total is known (e.g. `?page=8` stays until we know there are 25 pages). Add an `AbortController` to cancel the previous fetch when filters or page change, preventing stale responses from overwriting newer ones.
+Only run the page correction clamp when `totalProducts > 0`, so we do not reset the page before the first fetch completes. Introduce `pageForUrl` so the URL keeps the requested page until the total is known (e.g. `?page=8` stays until we know there are 25 pages). Add an `AbortController` to cancel the previous fetch when filters or page change, preventing stale responses from overwriting newer ones.
 
 **Why this approach:**  
-Clamping when `totalProducts === 0` was wrong because we did not yet know the max page. Preserving the requested page in the URL avoids the sync effect from overwriting it. `AbortController` is the standard way to cancel in-flight fetches when dependencies change.
+Clamping when `totalProducts === 0` was wrong because we did not yet know the max page. Preserving the requested page in the URL avoids the sync effect from overwriting it. `AbortController` is the standard way to cancel in flight fetches when dependencies change.
 
 ### Bug 10 — Client-side crash: "Cannot read properties of undefined (reading '0')"
 
